@@ -244,8 +244,10 @@ module MessagePrinter
       created file
     end
 
-    def create_folder name
-        FileUtils.mkdir_p(name)
+    def create_folder
+        directory_name = "wow"
+        FileUtils.mkdir_p(directory_name)
+        created file
       end
   
     def find_me_manifest
@@ -749,56 +751,26 @@ module MessagePrinter
 
   module Library
 
-    def library_2 name, package
-      create_library name, package
+    class Sample
+        def initialize
+        puts "Gradle Sample"
+        end
     end
 
-    def create_library name, package
-        manifest = Manifest.new
-        gradle = Gradle.new
-        tests = Test.new
-        git = Git.new 
-        package = package + name.downcase
-        # setters
-        manifest.package = package
-        tests.package = package
-
-        directory_name = name
-        src_dir = directory_name+ "/src"
-        and_test_dir = src_dir + "/androidTest/java/" + package
-        main_test_dir = src_dir + "/main/java/"
-        main_package_dir =  main_test_dir + package
-        test_dir = src_dir + "/test/java/" + package
-        create_folder src_dir
-        create_folder and_test_dir
-        create_folder main_test_dir
-        create_folder main_package_dir
-        create_folder test_dir
-        create_file  directory_name+'/build.gradle', gradle.build_gralde_template
-        create_file  directory_name+'/.gitignore', git.git_ignore_template
-        create_file  main_test_dir + "/AndroidManifest.xml", manifest.manifest_template
-        create_file  test_dir + "/ExampleUnitTest.kt", tests.unit_test_template
-        create_file  and_test_dir + "/ExampleInstrumentedTest.kt", tests.instrumented_test_template
-        find_settings_gradle name
-        cmd = "./gradlew androidDependencies"
+    def library_0
+        folder
     end
 
-    def find_settings_gradle library
-      f = File.open("settings.gradle", "r+")
-      lines = f.readlines
-      f.close
-
-      lines = ["include ':#{library.downcase}' \n"] + lines
-
-      output = File.new("settings.gradle", "w")
-      lines.each { |line| output.write line }
-      output.close
+    def folder
+        directory_name = "Library Gradle"
+        FileUtils.mkdir_p(directory_name)
     end
   end
   
   class ArgumentsHandler
   
     def start
+      if resolve_module
         case ARGV.length
           when 0
             handle_zero_args
@@ -813,6 +785,8 @@ module MessagePrinter
           else
             wrong_number_of_args
         end
+      end
+  
     end
   
     def handle_zero_args
@@ -856,10 +830,6 @@ module MessagePrinter
   
   require 'fileutils'
   require 'set'
-  require_relative 'sample/Manifest'
-  require_relative 'sample/Gradle'
-  require_relative 'sample/Test'
-  require_relative 'sample/Git'
   
   include MessagePrinter
   include Helper
