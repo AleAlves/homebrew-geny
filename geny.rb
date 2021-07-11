@@ -8,6 +8,6 @@ class Geny < Formula
   sha256 "93c34bb80c1bede26250e851c9e2693b7b6d03628944915a59b0fb727224b09e"
   license "GPL-3.0"
   def install
-    bin.install 'gitstart'
+    bin.install 'geny'
   end
 end
