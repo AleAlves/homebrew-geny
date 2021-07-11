@@ -4,8 +4,8 @@
 class Geny < Formula
   desc "Clean Code generator"
   homepage "https://github.com/AleAlves/geny"
-  url "https://github.com/AleAlves/geny/archive/refs/tags/0.0.2.tar.gz"
-  sha256 "93c34bb80c1bede26250e851c9e2693b7b6d03628944915a59b0fb727224b09e"
+  url "https://github.com/AleAlves/geny/archive/refs/tags/0.0.3.tar.gz"
+  sha256 "0428466ef5aa10975a1b250278f20fde99722278620efaddf86887c85ad6bda2"
   license "GPL-3.0"
   def install
     bin.install 'geny'
