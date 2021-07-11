@@ -4,7 +4,7 @@
 #app -> src -> flavor -> java
 module MessagePrinter
 
-    def colorize(text, color = "default", bgColor = "default")
+    def colorize(text, color = "yellow", bgColor = "default")
       colors = {"default" => "38", "black" => "30", "red" => "1;31", "green" => "1;32", "brown" => "33", "blue" => "1;34", "purple" => "35",
                 "cyan" => "36", "gray" => "37", "dark gray" => "1;30", "light red" => "1;31", "light green" => "1;32", "yellow" => "1;33",
                 "light blue" => "1;34", "light purple" => "1;35", "light cyan" => "1;36", "white" => "1;37"}
@@ -92,9 +92,7 @@ module MessagePrinter
       puts yellow "Android Generators"
       puts yellow("  Command          ")+ "|" + yellow("   Arguments       ")
       puts '  -------------------------------------------------------------------'
-      puts '  activity         |  Optional[Flag] [ActivityName] Optional[Package]'
-      puts '  fragment         |  Optional[Flag] [FragmentName] Optional[Package]'
-      puts '  layout           |  Optional[Flag] [layout_name] '
+      puts '  Library         |     [Name] [Package] [Feature]'
       puts '  -------------------------------------------------------------------'
       puts
       puts yellow "Optional flags"
@@ -115,33 +113,8 @@ module MessagePrinter
   module Helper
   
     def command_is_accepted? command
-      accepted_commands = ['library','activity', 'fragment', 'layout', '--help', '--version']
+      accepted_commands = ['library','--help', '--version']
       accepted_commands.to_a.include?(command.to_s.downcase)
-    end
-  
-    def select_flavor
-      #see how many flavors you have
-      #app -> src -> flavor -> java
-      flavors = Set.new
-      Dir.glob('**/src/*/*').select {
-          |dir|
-        if dir.to_s.end_with? 'java' or dir.to_s.end_with? 'res' and !dir.to_s.downcase.include? 'test'
-          flavors.add File.dirname(dir).sub('src/', '')
-        end
-      }
-      if flavors.length > 1
-        puts yellow('Select Flavor for your command')
-        index = 1
-        flavors.each do
-        |f|
-          puts "#{index}. #{f}"
-          index+=1
-        end
-        @flavor = get_selection flavors.to_a
-  
-      elsif flavors.length == 1
-        @flavor = flavors.to_a[0]
-      end
     end
   
     def is_flag? flag_or_name
@@ -156,89 +129,7 @@ module MessagePrinter
           return false
       end
     end
-  
-    def resolve_package package
-      src_path = ''
-      #check if the source path is found
-      Dir.glob('**/src/*/*').select {
-          |d|
-        if d.to_s.end_with? 'java' and !d.to_s.downcase.include? 'test'
-          src_path = d +'/'
-        end
-      }
-      if src_path == ''
-        error ('Source path not found i.e. the java folder')
-        return false
-      end
-  
-      #handle empty path
-      if package.to_s.eql? ''
-        #return the top-most package
-        top_package = Dir.glob("**/#{@flavor}/java/**/*").last
-        return File.dirname(top_package)
-      end
-      #create package path and return it
-      path_from_package = package.to_s.gsub '.', '/'
-      paths = []
-  
-      #find the path
-      Dir.glob("**/#{@flavor}/java/**/*").select {
-          |d|
-        if d.to_s.end_with? path_from_package and !d.to_s.downcase.include? 'test'
-          paths << d
-        end
-      }
-  
-      if paths.length == 0
-        #create the package manually
-        package_path = src_path+path_from_package
-        FileUtils.mkdir_p(package_path)
-        return package_path
-      elsif paths.length == 1
-        return paths[0]
-      else
-        puts yellow 'Package conflict - Select one from the following'
-        index = 0
-        paths.each do |p|
-          puts "#{index+1}. " + p
-          index+=1
-        end
-        path = get_selection(paths)
-        return path
-      end
-    end
-  
-    def resolve_module
-      if ARGV.length <= 1
-        return true
-      end
-      @module_dir = Dir.pwd
-      if module_or_not
-        return true
-      else
-        error 'Make sure you are at module root'
-      end
-    end
-  
-    def module_or_not
-      Dir.chdir(@module_dir)
-      Dir.glob("*").select { |d|
-        if File.basename(d).to_s == 'src'
-          return true
-        end
-      }
-      return false
-    end
-  
-    def check_for_default_module
-      Dir.glob("*").select { |d|
-        if File.basename(d).to_s == 'app'
-          @module_dir = @module_dir + "/" + d
-        end
-      }
-      return module_or_not
-    end
-  
+
     def create_file file, template
       File.open(file, 'w') { |file| file.write(template) }
       created file
@@ -247,540 +138,77 @@ module MessagePrinter
     def create_folder name
         FileUtils.mkdir_p(name)
       end
-  
-    def find_me_manifest
-      manifests = []
-      Dir.glob("**/src/#{@flavor}/AndroidManifest.xml").select {
-          |file|
-        manifests << file
-      }
-      if manifests.length == 0
-        Dir.glob("**/src/**/AndroidManifest.xml").select {
-            |file|
-          manifests << file
-        }
-      end
-  
-      if manifests.length>1
-        puts yellow 'Manifest conflict - Select one from the following'
-        index = 0
-        manifests.each do |p|
-          puts "#{index+1}. " + p
-          index+=1
-        end
-        manifest = get_selection(manifests)
-        return manifest
-      elsif manifests.length == 1
-        return manifests[0]
-      end
-      return :nothing
-    end
-  
-    def get_selection(paths)
-      begin
-        selection = STDIN.gets
-      rescue Interrupt => e
-        exit
-      end
-      if is_numeric(selection) and selection.to_i > 0 and selection.to_i < paths.length+1
-        path = paths[selection.to_i - 1]
-      else
-        puts yellow 'Wrong input, select again '
-        get_selection(paths)
-      end
-      path
-    end
-  
-    def get_layout_name name
-      layout_name = underscore name
-      layout_name = layout_name.split('_').reverse.join('_')
-      layout_name
-    end
-  
-    def is_numeric input
-      true if Integer(input) rescue false
-    end
-  
-    def add_activity_to_manifest(package, activity)
-      path = find_me_manifest
-      case path
-        when :nothing
-          error 'Manifest not found!'
-        else
-          lines = File.readlines(path)
-          line_number = 0
-          lines.each do |line|
-            if line.to_s.include?('</application>')
-              lines[line_number-1] << get_manifest_activity(package.to_s+'.'+activity)
-            end
-            line_number = line_number+1
-          end
-          File.open(path, 'w') { |file|
-            lines.each { |line|
-              file.puts line
-            }
-          }
-          updated path
-      end
-    end
-  
-    def get_manifest_activity activity
-      "        <activity android:name=\"#{activity}\">
-          </activity>"
-    end
-  
-    def get_me_path_for path
-      Dir.chdir(@module_dir)
-      src_path = @module_dir+path
-      FileUtils.mkpath src_path
-      target_path = Dir.glob(src_path+"/**/*").last
-      target_path = src_path if target_path == nil
-      if target_path.to_s.end_with? '.xml'
-        target_path = File.dirname target_path
-      end
-      target_path
-    end
   end
-  
-  module Templates
-    def activity_template name, package
-      return "#{package}
-  import android.support.v7.app.AppCompatActivity;
-  import android.os.Bundle;
-  public class #{name} extends AppCompatActivity
-  {
-      @Override
-      protected void onCreate(Bundle savedInstanceState)
-      {
-          super.onCreate(savedInstanceState);
-      }
-  }"
-    end
-  
-    def activity_layout_template name, package
-      return "#{package}
-  import android.support.v7.app.AppCompatActivity;
-  import android.os.Bundle;
-  public class #{name} extends AppCompatActivity
-  {
-      @Override
-      protected void onCreate(Bundle savedInstanceState)
-      {
-          super.onCreate(savedInstanceState);
-          setContentView(R.layout.#{@layout_name});
-      }
-  }"
-    end
-  
-    def activity_bindable_template name, package
-      binding_name = get_binding_name
-      return "#{package}
-  import android.support.v7.app.AppCompatActivity;
-  import android.os.Bundle;
-  import android.databinding.DataBindingUtil;
-  public class #{name} extends AppCompatActivity
-  {
-      #{binding_name} mBinding;
-      @Override
-      protected void onCreate(Bundle savedInstanceState)
-      {
-          super.onCreate(savedInstanceState);
-          mBinding = DatabindingUtil.setContentView(this, R.layout.#{@layout_name});
-      }
-  }"
-    end
-  
-    def fragment_template name, package
-      return "#{package}
-  import android.os.Bundle;
-  import android.support.v4.app.Fragment;
-  import android.view.LayoutInflater;
-  import android.view.View;
-  import android.view.ViewGroup;
-  public class #{name} extends Fragment
-  {
-      public #{name}()
-      {
-          // Required empty public constructor
-      }
-  }"
-    end
-  
-    def fragment_layout_template name, package
-      return "#{package}
-  import android.os.Bundle;
-  import android.support.v4.app.Fragment;
-  import android.view.LayoutInflater;
-  import android.view.View;
-  import android.view.ViewGroup;
-  public class #{name} extends Fragment
-  {
-      public #{name}()
-      {
-          // Required empty public constructor
-      }
-      @Override
-      public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                               Bundle savedInstanceState)
-      {
-          // Inflate the layout for this fragment
-          return inflater.inflate(R.layout.#{@layout_name}, container, false);
-      }
-  }"
-    end
-  
-    def fragment_bindable_template name, package
-      binding_name = get_binding_name
-      return "#{package}
-  import android.os.Bundle;
-  import android.support.v4.app.Fragment;
-  import android.view.LayoutInflater;
-  import android.view.View;
-  import android.view.ViewGroup;
-  import android.databinding.DataBindingUtil;
-  public class #{name} extends Fragment
-  {
-      #{binding_name} mBinding;
-      public #{name}()
-      {
-          // Required empty public constructor
-      }
-      @Override
-      public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                               Bundle savedInstanceState)
-      {
-          mBinding = DataBindingUtil.inflate(inflater, R.layout.#{@layout_name}, container, false);
-          return mBinding.getRoot();
-      }
-  }"
-    end
-  
-    def get_binding_name
-      @layout_name.split('_').collect(&:capitalize).join + "Binding"
-    end
-  
-    def layout_template
-      return '<?xml version="1.0" encoding="utf-8"?>
-  <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-                android:orientation="vertical"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-  </LinearLayout>'
-    end
-  
-    def bindable_layout_template
-      return '<?xml version="1.0" encoding="utf-8"?>
-  <layout xmlns:android="http://schemas.android.com/apk/res/android">
-  <LinearLayout android:orientation="vertical"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-  </LinearLayout>
-  </layout>'
-    end
-  end
-  
-  module Activity
-  
-    def activity_0
-      activity_examples
-    end
-  
-    def activity_1 flag_or_name
-      if is_flag?(flag_or_name)
-        activity_examples
-      else
-        select_flavor
-        package = create_activity flag_or_name, ''
-        if package
-          add_activity_to_manifest package, flag_or_name
-        end
-      end
-    end
-  
-    def activity_2 flag_or_name, package_or_name
-      select_flavor
-      if is_flag? flag_or_name
-        @layout_name = underscore package_or_name
-        @layout_name = @layout_name.split('_').reverse.join('_')
-        package = create_activity package_or_name, ''
-        if package
-          create_layout_file flag_or_name, @layout_name
-          add_activity_to_manifest package, package_or_name
-        end
-      else
-        package = create_activity flag_or_name, package_or_name
-        if package
-          add_activity_to_manifest package, flag_or_name
-        end
-      end
-    end
-  
-    def activity_3 flag, name, package
-      if is_flag? flag
-        select_flavor
-        @layout_name = underscore name
-        @layout_name = @layout_name.split('_').reverse.join('_')
-        package = create_activity name, package
-        if package
-          create_layout_file flag, @layout_name
-          add_activity_to_manifest package, name
-        end
-      else
-        not_correct_format
-      end
-    end
-  
-    def create_activity file_name, package
-      if package.to_s.eql? ''
-        #no package
-        package_path = resolve_package package
-      else
-        package_path = resolve_package package
-      end
-  
-      #find me the path for java folder and package
-      file = package_path+'/'+file_name+'.java'
-  
-      if File.file?(file)
-        error(file.sub(@module_dir+'/', '') +" already exists!")
-        return false
-      end
-  
-      target_array = package_path.to_s.split('/')
-      package = []
-      add = false
-      target_array.select {
-          |e|
-        if add
-          package << e
-        end
-  
-        if e == 'java'
-          add = true
-        end
-      }
-      if package.length>0
-        package = package.to_a.join('.')
-        package_statement = 'package '+ package+';'
-        generate_activity_template file, file_name, package_statement
-      else
-        generate_activity_template file, file_name, ''
-      end
-      return package
-    end
-  
-    def generate_activity_template file, file_name, package_statement
-      case @flag
-        when :layout
-          create_file file, activity_layout_template(file_name, package_statement)
-        when :bindable_layout
-          create_file file, activity_bindable_template(file_name, package_statement)
-        else
-          create_file file, activity_template(file_name, package_statement)
-      end
-    end
-  
-  end
-  
-  module Fragment
-  
-    def fragment_0
-      fragment_examples
-    end
-  
-    def fragment_1 flag_or_name
-      if is_flag?(flag_or_name)
-        fragment_examples
-      else
-        select_flavor
-        create_fragment flag_or_name, ''
-      end
-    end
-  
-    def fragment_2 flag_or_name, package_or_name
-      select_flavor
-      if is_flag? flag_or_name
-        @layout_name = underscore package_or_name
-        @layout_name = @layout_name.split('_').reverse.join('_')
-        package = create_fragment package_or_name, ''
-        if package
-          create_layout_file flag_or_name, @layout_name
-        end
-      else
-        create_fragment flag_or_name, package_or_name
-      end
-    end
-  
-    def fragment_3 flag, name, package
-      if is_flag? flag
-        select_flavor
-        @layout_name = underscore name
-        @layout_name = @layout_name.split('_').reverse.join('_')
-        package = create_fragment name, package
-        if package
-          create_layout_file flag, @layout_name
-        end
-      else
-        not_correct_format
-      end
-    end
-  
-    def create_fragment file_name, package
-      if package.to_s.eql? ''
-        #no package
-        package_path = resolve_package package
-      else
-        package_path = resolve_package package
-      end
-  
-      #find me the path for java folder and package
-      file = package_path+'/'+file_name+'.java'
-  
-      if File.file?(file)
-        error(file.sub(@module_dir+'/', '') +" already exists!")
-        return false
-      end
-  
-      target_array = package_path.to_s.split('/')
-      package = []
-      add = false
-      target_array.select {
-          |e|
-        if add
-          package << e
-        end
-  
-        if e == 'java'
-          add = true
-        end
-      }
-      if package.length>0
-        package = package.to_a.join('.')
-        package_statement = 'package '+ package+';'
-        generate_fragment_template file, file_name, package_statement
-      else
-        generate_fragment_template file, file_name, ''
-      end
-      return package
-    end
-  
-    def generate_fragment_template file, file_name, package_statement
-      case @flag
-        when :layout
-          create_file file, fragment_layout_template(file_name, package_statement)
-        when :bindable_layout
-          create_file file, fragment_bindable_template(file_name, package_statement)
-        else
-          create_file file, fragment_template(file_name, package_statement)
-      end
-    end
-  
-  
-  end
-  
-  module Layout
-  
-    def underscore(camel_cased_word)
-      camel_cased_word.to_s.gsub(/::/, '/').
-          gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').
-          gsub(/([a-z\d])([A-Z])/, '\1_\2').
-          tr("-", "_").
-          downcase
-    end
-  
-    def create_layout_file flag, layout_name
-  
-      # return if it's not a flag
-      if !flag.to_s.eql? '-l' and !flag.to_s.eql? '-bl'
-        error '-l or -bl expected as flag!'
-        layout_examples
-        return
-      end
-  
-      layout_path = ''
-      #check if the source path is found
-      Dir.glob("**/src/#{@flavor}/res/layout").select {
-          |d|
-        layout_path = d
-      }
-      if layout_path == ''
-        #create the dir
-        FileUtils.mkpath(@module_dir+"/src/#{@flavor}/res/layout")
-        layout_path = @module_dir+"/src/#{@flavor}/res/layout"
-      end
-  
-      file_name = underscore layout_name
-      file = layout_path +'/'+file_name+'.xml'
-      if File.file?(file)
-        error(file +" already exists!")
-        return
-      end
-  
-      if flag == '-l'
-        File.open(file, 'w') { |f| f.write layout_template }
-      elsif flag == '-bl'
-        File.open(file, 'w') { |f| f.write bindable_layout_template }
-      else
-        error '-l or -bl expected as flag!'
-        layout_examples
-        return
-      end
-      created file
-    end
-  
-    def layout_0
-      layout_examples
-    end
-  
-    def layout_1 name
-      select_flavor
-      create_layout_file '-l', name
-    end
-  
-    def layout_2 flag, name
-      select_flavor
-      create_layout_file flag, name
-    end
-  
-    def layout_3 a1, a2, a3
-      wrong_number_of_args
-    end
-  end
-
   module Library
 
-    def library_2 name, package
-      create_library name, package
+    def library_3 name, package, feature
+      create_library name, package, feature
     end
 
-    def create_library name, package
+    def create_library name, package, feature
+        activity = Activities.new
         manifest = Manifest.new
+        folder = Folder.new
+        values = Values.new
         gradle = Gradle.new
         tests = Test.new
         git = Git.new 
-        package = package + name.downcase
-        # setters
+
+        #Core Library Directories
+        package = package + "." +name.downcase
         manifest.package = package
         tests.package = package
+        directory_name = name  + "/"
+        src_dir = directory_name+ "src/"
+        and_test_dir = src_dir + "androidTest/java/" + package + "/"
+        main_dir = src_dir + "main/"
+        java_dir = main_dir + "java/"
+        res_dir = main_dir + "res/"
+        layout_dir = res_dir + "layout/"
+        values_dir = res_dir + "values/"
+        main_package_dir =  java_dir + package
+        test_dir = src_dir + "test/java/" + package + "/"
 
-        directory_name = name
-        src_dir = directory_name+ "/src"
-        and_test_dir = src_dir + "/androidTest/java/" + package
-        main_test_dir = src_dir + "/main/java/"
-        main_package_dir =  main_test_dir + package
-        test_dir = src_dir + "/test/java/" + package
+
         create_folder src_dir
+        create_folder res_dir
+        create_folder layout_dir
+        create_folder values_dir
         create_folder and_test_dir
-        create_folder main_test_dir
+        create_folder java_dir
         create_folder main_package_dir
         create_folder test_dir
-        create_file  directory_name+'/build.gradle', gradle.build_gralde_template
-        create_file  directory_name+'/.gitignore', git.git_ignore_template
-        create_file  main_test_dir + "/AndroidManifest.xml", manifest.manifest_template
-        create_file  test_dir + "/ExampleUnitTest.kt", tests.unit_test_template
-        create_file  and_test_dir + "/ExampleInstrumentedTest.kt", tests.instrumented_test_template
+
+        #Core files
+        create_file  directory_name + 'build.gradle', gradle.build_gralde_template
+        create_file  directory_name + '.gitignore', git.git_ignore_template
+        create_file  main_dir + "AndroidManifest.xml", manifest.manifest_template
+        create_file  test_dir + "ExampleUnitTest.kt", tests.unit_test_template
+        create_file  and_test_dir + "ExampleInstrumentedTest.kt", tests.instrumented_test_template
         find_settings_gradle name
-        cmd = "./gradlew androidDependencies"
+
+        #Feature Directories
+        feature_dir = []
+        data_dir = feature.downcase+ "/"+ folder.clean_data_package_template 
+        di_dir = feature.downcase+ "/"+ folder.clean_di_package_template 
+        domain_dir = feature.downcase+ "/"+ folder.clean_domain_package_template 
+        presentation_dir = feature.downcase+ "/"+ folder.clean_presentation_package_template + "/"
+
+        feature_dir.push(data_dir, di_dir, domain_dir, presentation_dir)
+        feature_dir.each{ |folder| create_folder main_package_dir + "/"+ folder }
+
+        #Feature Files
+        activity.package = convert_patch_to_package package +"."+ presentation_dir
+        activity.feature = feature
+        values.feature = feature
+        
+        create_file values_dir + values.strings_file, values.strings_template
+        create_file   main_package_dir + "/"+ presentation_dir + activity.class, activity.class_template
+        create_file  layout_dir + activity.layout, activity.layout_template
+
+        #Build
+        build = "./gradlew clean"
+        #system(build)
     end
 
     def find_settings_gradle library
@@ -793,6 +221,14 @@ module MessagePrinter
       output = File.new("settings.gradle", "w")
       lines.each { |line| output.write line }
       output.close
+    end
+
+    def convert_patch_to_package path
+      formated = ''
+      path.each_char { |c| 
+          formated.concat(c.sub('/', '.'))
+      }
+      return  formated
     end
   end
   
@@ -856,17 +292,16 @@ module MessagePrinter
   
   require 'fileutils'
   require 'set'
+  require_relative 'sample/Activities'
   require_relative 'sample/Manifest'
+  require_relative 'sample/Folder'
   require_relative 'sample/Gradle'
+  require_relative 'sample/Values'
   require_relative 'sample/Test'
   require_relative 'sample/Git'
   
   include MessagePrinter
   include Helper
-  include Activity
-  include Fragment
-  include Layout
   include Library
-  include Templates
   
   ArgumentsHandler.new.start

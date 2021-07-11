@@ -3,7 +3,7 @@ class Git
         puts "Git Template"
       end
     def git_ignore_template
-        return `*.iml
+        return '*.iml
 .idea
 .gradle
 /local.properties
@@ -15,6 +15,6 @@ class Git
 .externalNativeBuild
 google-services.json
 app/src/main/assets/config.properties
-app/google-services.json`
+app/google-services.json'
       end
 end
