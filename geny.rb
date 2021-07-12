@@ -4,7 +4,7 @@
 class Geny < Formula
   desc "Clean Code generator"
   homepage "https://github.com/AleAlves/geny"
-  url "https://github.com/AleAlves/geny/archive/refs/tags/0.0.4.tar.gz"
+  url "https://github.com/AleAlves/homebrew-geny/archive/refs/tags/0.0.4.tar.gz"
   sha256 "331c7f8f87c9ae1aa0bb8ecf3722a3d973de6e9cde519f9350dbcf31a5575669"
   license "GPL-3.0"
   def install
