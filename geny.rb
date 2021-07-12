@@ -9,5 +9,12 @@ class Geny < Formula
   license "GPL-3.0"
   def install
     bin.install 'geny'
+    bin.install 'sample/Activities'
+    bin.install 'sample/Manifest'
+    bin.install 'sample/Folder'
+    bin.install 'sample/Gradle'
+    bin.install 'sample/Values'
+    bin.install 'sample/Test'
+    bin.install 'sample/Git'
   end
 end
